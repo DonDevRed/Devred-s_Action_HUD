@@ -1,0 +1,637 @@
+version "4.12"
+
+class DevredsHUD : BaseStatusBar
+{
+	
+	HUDFont MegaFont;
+	HUDFont BigFont;
+	HUDFont TinyFont;
+	
+	int health_catchup;
+	
+	int dm_lerp_tics;
+	bool damagebar_lit;
+	
+	int previous_ammo;
+	int clipcasing_tics;
+	bool casing_spent;
+	
+	int ammotray_lerp;
+	
+	int clip_tray_dist;
+	int clip_tray_lerp;
+	int clip_tray_up;
+	
+	int shell_tray_dist;
+	
+	int rocket_tray_dist;
+	
+	int cell_tray_dist;
+	
+	string current_ammotype;
+	string previous_ammotype;
+	bool ammotype_switched;
+	
+	bool crit_mug_fade_in;
+	float crit_mug_alpha;
+	
+	int player_command;
+	bool use_generic_sprite;
+	bool use_custom_ammo;
+	
+	override void Init()
+	{
+		Super.Init();
+		
+		health_catchup = 0;
+		dm_lerp_tics = 0;
+		damagebar_lit = false;
+		
+		previous_ammo = 0;
+		clipcasing_tics = 7;
+		casing_spent = false;
+		
+		ammotray_lerp = 0;
+		clip_tray_dist = 10;
+		shell_tray_dist = 12;
+		rocket_tray_dist = 16;
+		cell_tray_dist = 8;
+		clip_tray_lerp = 10;
+		clip_tray_up = 0;
+		ammotype_switched = false;
+		
+		crit_mug_fade_in = false;
+		crit_mug_alpha = 0.0;
+		
+		use_generic_sprite = true;
+		use_custom_ammo = false;
+		
+		MegaFont = HUDFont.Create("HUDFONT_DOOM");
+		BigFont = HUDFont.Create("SMALLFONT");
+		TinyFont = HUDFont.Create("INDEXFONT");
+	}
+	
+	override void Draw (int state, double TicFrac)
+	{
+		Super.Draw (state, TicFrac);
+
+		if (state == HUD_StatusBar)
+		{
+			BeginStatusBar();
+			D_StatusHUD (TicFrac);
+		}
+		else if (state == HUD_Fullscreen)
+		{
+			BeginHUD();
+			D_FullHUD (TicFrac);
+		}
+	}
+	
+	void D_StatusHUD (double TicFrac)
+	{
+		return;
+	}
+	
+	void D_FullHUD (double TicFrac)
+	{
+		//Health bar is designated here.
+		DrawImage ("HPARBAR",(55,0),DI_SCREEN_LEFT_BOTTOM);
+		
+		//-----------------------------|Health Bar|------------------------
+		//Damaged bar interpolation.
+		if (CPlayer.health > health_catchup)
+		{
+			health_catchup = CPlayer.health;
+		}
+		else if (CPlayer.health < health_catchup && dm_lerp_tics <= 0)
+		{
+			health_catchup -= 1;
+			damagebar_lit ^= true;
+			dm_lerp_tics = 2;
+		}
+		dm_lerp_tics -= TicFrac;
+		
+		if (damagebar_lit)
+		{
+			DrawBar ("HPBARDM1", "HPBARNO", health_catchup, 100, (62, -7), SHADER_HORZ, DI_SCREEN_LEFT_BOTTOM);
+		}
+		else
+		{
+			DrawBar ("HPBARDM2", "HPBARNO", health_catchup, 100, (62, -7), SHADER_HORZ, DI_SCREEN_LEFT_BOTTOM);
+		}
+		
+		
+		if (CPlayer.health > 25){
+			DrawString (MegaFont, FormatNumber(CPlayer.health, 3), (0,-35), DI_SCREEN_LEFT_BOTTOM|DI_TEXT_ALIGN_LEFT, Font.CR_GREEN);
+			DrawBar ("HPBAR1", "HPBARNO", CPlayer.health, 100, (62, -7), SHADER_HORZ, DI_SCREEN_LEFT_BOTTOM);
+		}
+		else{
+			DrawString (MegaFont, FormatNumber(CPlayer.health, 3), (0,-35), DI_SCREEN_LEFT_BOTTOM|DI_TEXT_ALIGN_LEFT, Font.CR_BRICK);
+			DrawBar ("HPBAR0", "HPBARNO", CPlayer.health, 100, (62, -7), SHADER_HORZ, DI_SCREEN_LEFT_BOTTOM);
+		}
+		
+		if (CPlayer.health > 100)
+		{
+			DrawString (MegaFont, FormatNumber(CPlayer.health, 3), (0,-35), DI_SCREEN_LEFT_BOTTOM|DI_TEXT_ALIGN_LEFT, Font.CR_SAPPHIRE);
+		}
+		DrawBar ("HPBAR2", "HPBARNO", CPlayer.health - 100, 100, (62, -7), SHADER_HORZ, DI_SCREEN_LEFT_BOTTOM);
+		
+		//---------------------|Armor Display|---------------------------
+		
+		if (GetArmorAmount() > 100)
+		{
+			DrawString (BigFont, FormatNumber(GetArmorAmount(), 3), (1,-9), DI_SCREEN_LEFT_BOTTOM|DI_TEXT_ALIGN_LEFT, Font.CR_CYAN);
+		}
+		else
+		{
+			DrawString (BigFont, FormatNumber(GetArmorAmount(), 3), (1,-9), DI_SCREEN_LEFT_BOTTOM|DI_TEXT_ALIGN_LEFT, Font.CR_BLUE);
+		}
+		
+		DrawBar ("APBAR1", "APBAR0", GetArmorAmount(), 100, (62, -1), SHADER_HORZ, DI_SCREEN_LEFT_BOTTOM);
+		DrawBar ("APBAR2", "APBAR0", GetArmorAmount() - 100, 100, (62, -1), SHADER_HORZ, DI_SCREEN_LEFT_BOTTOM);
+		
+		//--------------------|Ammo Counter|------------------------
+		//Here we draw the ammo tray, display ammo and animate ammo spent.
+		Inventory ammotype1, ammotype2;
+		[ammotype1, ammotype2] = GetCurrentAmmo();
+		
+		bool check_ammotype;
+		
+		if (ammotype1 != null) {
+			if (!use_custom_ammo) {
+				current_ammotype = ammotype1.GetClassName();
+			}
+			DrawImage ("AMMOTRAY",(-59,ammotray_lerp),DI_SCREEN_RIGHT_BOTTOM);
+		} else {
+			current_ammotype = "None";
+		}
+		
+		if (current_ammotype == "Clip" || current_ammotype == "Shell" || current_ammotype == "RocketAmmo" || current_ammotype == "Cell") {
+			check_ammotype = true;
+		}
+		else {
+			check_ammotype = false;
+		}
+		
+		if (ammotray_lerp > 0) {
+			ammotray_lerp -= TicFrac * 8;
+		}
+		else if (ammotray_lerp < 0) {
+			ammotray_lerp += TicFrac;
+		}
+		
+		//This section is to show ammo in the tray.
+		if (ammotype1 != null)
+		{
+			if (current_ammotype == "Clip")
+			{
+				if (ammotype1.Amount >= 1)
+				{
+					DrawImage("TR_CLIP0", (clip_tray_dist * -10 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 2)
+				{
+					DrawImage("TR_CLIP0", (clip_tray_dist * -9 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 3)
+				{
+					DrawImage("TR_CLIP0", (clip_tray_dist * -8 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 4)
+				{
+					DrawImage("TR_CLIP0", (clip_tray_dist * -7 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 5)
+				{
+					DrawImage("TR_CLIP0", (clip_tray_dist * -6 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 6)
+				{
+					DrawImage("TR_CLIP0", (clip_tray_dist * -5 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 7)
+				{
+					DrawImage("TR_CLIP0", (clip_tray_dist * -4 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 8)
+				{
+					DrawImage("TR_CLIP0", (clip_tray_dist * -3 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 9)
+				{
+					DrawImage("TR_CLIP0", (clip_tray_dist * -2 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+			}
+			else if (current_ammotype == "Shell")
+			{
+					if (ammotype1.Amount >= 1)
+				{
+					DrawImage("TR_SHEL0", (shell_tray_dist * -8 + clip_tray_lerp - 2, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 2)
+				{
+					DrawImage("TR_SHEL0", (shell_tray_dist * -7 + clip_tray_lerp - 2, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 3)
+				{
+					DrawImage("TR_SHEL0", (shell_tray_dist * -6 + clip_tray_lerp - 2, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 4)
+				{
+					DrawImage("TR_SHEL0", (shell_tray_dist * -5 + clip_tray_lerp - 2, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 5)
+				{
+					DrawImage("TR_SHEL0", (shell_tray_dist * -4 + clip_tray_lerp - 2, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 6)
+				{
+					DrawImage("TR_SHEL0", (shell_tray_dist * -3 + clip_tray_lerp - 2, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 7)
+				{
+					DrawImage("TR_SHEL0", (shell_tray_dist * -2 + clip_tray_lerp - 2, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 8)
+				{
+					DrawImage("TR_SHEL0", (shell_tray_dist * -1 + clip_tray_lerp - 2, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+			}
+			else if (current_ammotype == "RocketAmmo")
+			{
+					if (ammotype1.Amount >= 1)
+				{
+					DrawImage("TR_ROCK0", (rocket_tray_dist * -6 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 2)
+				{
+					DrawImage("TR_ROCK0", (rocket_tray_dist * -5 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 3)
+				{
+					DrawImage("TR_ROCK0", (rocket_tray_dist * -4 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 4)
+				{
+					DrawImage("TR_ROCK0", (rocket_tray_dist * -3 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 5)
+				{
+					DrawImage("TR_ROCK0", (rocket_tray_dist * -2 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 6)
+				{
+					DrawImage("TR_ROCK0", (rocket_tray_dist * -1 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+			}
+			if (current_ammotype == "Cell")
+			{
+				if (ammotype1.Amount >= 1)
+				{
+					DrawImage("TR_CELL0", (cell_tray_dist * -13 + clip_tray_lerp + 3, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 2)
+				{
+					DrawImage("TR_CELL0", (cell_tray_dist * -12 + clip_tray_lerp + 3, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 3)
+				{
+					DrawImage("TR_CELL0", (cell_tray_dist * -11 + clip_tray_lerp + 3, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 4)
+				{
+					DrawImage("TR_CELL0", (cell_tray_dist * -10 + clip_tray_lerp + 3, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 5)
+				{
+					DrawImage("TR_CELL0", (cell_tray_dist * -9 + clip_tray_lerp + 3, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 6)
+				{
+					DrawImage("TR_CELL0", (cell_tray_dist * -8 + clip_tray_lerp + 3, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 7)
+				{
+					DrawImage("TR_CELL0", (cell_tray_dist * -7 + clip_tray_lerp + 3, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 8)
+				{
+					DrawImage("TR_CELL0", (cell_tray_dist * -6 + clip_tray_lerp + 3, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 9)
+				{
+					DrawImage("TR_CELL0", (cell_tray_dist * -5 + clip_tray_lerp + 3, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 10)
+				{
+					DrawImage("TR_CELL0", (cell_tray_dist * -4 + clip_tray_lerp + 3, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 11)
+				{
+					DrawImage("TR_CELL0", (cell_tray_dist * -3 + clip_tray_lerp + 3, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 12)
+				{
+					DrawImage("TR_CELL0", (cell_tray_dist * -2 + clip_tray_lerp + 3, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+			}
+			else if ( !check_ammotype && use_generic_sprite)
+			{
+				if (ammotype1.Amount >= 1)
+				{
+					DrawImage("TR_GNRC0", (clip_tray_dist * -10 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 2)
+				{
+					DrawImage("TR_GNRC0", (clip_tray_dist * -9 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 3)
+				{
+					DrawImage("TR_GNRC0", (clip_tray_dist * -8 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 4)
+				{
+					DrawImage("TR_GNRC0", (clip_tray_dist * -7 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 5)
+				{
+					DrawImage("TR_GNRC0", (clip_tray_dist * -6 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 6)
+				{
+					DrawImage("TR_GNRC0", (clip_tray_dist * -5 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 7)
+				{
+					DrawImage("TR_GNRC0", (clip_tray_dist * -4 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 8)
+				{
+					DrawImage("TR_GNRC0", (clip_tray_dist * -3 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (ammotype1.Amount >= 9)
+				{
+					DrawImage("TR_GNRC0", (clip_tray_dist * -2 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
+			}
+		}
+		
+		if (ammotype1 != null && ammotype1.Amount != previous_ammo)
+		{	
+			if (current_ammotype != previous_ammotype) {
+				clip_tray_up = -30;
+				previous_ammotype = current_ammotype;
+				ammotray_lerp = 30;
+			}
+			else if (ammotype1.Amount > previous_ammo) {
+				clip_tray_up = 8;
+			}
+			else{
+				clipcasing_tics = 7;
+				clip_tray_lerp = 10;
+			}
+			previous_ammo = ammotype1.Amount;
+		}
+			clipcasing_tics -= TicFrac;
+		
+		if (clip_tray_lerp > 0) {
+			clip_tray_lerp -= TicFrac * 2;
+		}
+		
+		if (clip_tray_up > 0) {
+			clip_tray_up -= TicFrac * 2;
+		}
+		else if (clip_tray_up < 0) {
+			clip_tray_up += TicFrac * 8;
+		}
+		
+		if (clipcasing_tics > 0)
+		{
+			if (current_ammotype == "Clip")
+			{
+				if (clipcasing_tics == 7)
+				{
+					DrawImage("TRCLPU_1", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (clipcasing_tics == 6)
+				{
+					DrawImage("TRCLPU_2", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (clipcasing_tics == 5)
+				{
+					DrawImage("TRCLPU_3", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (clipcasing_tics == 4)
+				{
+					DrawImage("TRCLPU_4", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (clipcasing_tics == 3)
+				{
+					DrawImage("TRCLPU_5", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (clipcasing_tics == 2)
+				{
+					DrawImage("TRCLPU_6", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (clipcasing_tics == 1)
+				{
+					DrawImage("TRCLPU_7", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+			}
+			
+			else if (current_ammotype == "Shell") {
+				if (clipcasing_tics == 7)
+				{
+					DrawImage("TRSHLU_1", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (clipcasing_tics == 6)
+				{
+					DrawImage("TRSHLU_2", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (clipcasing_tics == 5)
+				{
+					DrawImage("TRSHLU_3", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (clipcasing_tics == 4)
+				{
+					DrawImage("TRSHLU_4", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (clipcasing_tics == 3)
+				{
+					DrawImage("TRSHLU_5", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (clipcasing_tics == 2)
+				{
+					DrawImage("TRSHLU_6", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (clipcasing_tics == 1)
+				{
+					DrawImage("TRSHLU_7", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+			}
+			
+			else if (current_ammotype == "RocketAmmo") {
+				if (clipcasing_tics == 7)
+				{
+					DrawImage("TRROCU_1", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (clipcasing_tics == 6)
+				{
+					DrawImage("TRROCU_2", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (clipcasing_tics == 5)
+				{
+					DrawImage("TRROCU_3", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (clipcasing_tics == 4)
+				{
+					DrawImage("TRROCU_4", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (clipcasing_tics == 3)
+				{
+					DrawImage("TRROCU_5", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (clipcasing_tics == 2)
+				{
+					DrawImage("TRROCU_6", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (clipcasing_tics == 1)
+				{
+					DrawImage("TRROCU_7", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+			}
+			
+			else if (current_ammotype == "Cell") {
+				if (clipcasing_tics == 7)
+				{
+					DrawImage("TRCELU_1", (-58,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (clipcasing_tics == 6)
+				{
+					DrawImage("TRCELU_2", (-58,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (clipcasing_tics == 5)
+				{
+					DrawImage("TRCELU_3", (-58,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (clipcasing_tics == 4)
+				{
+					DrawImage("TRCELU_4", (-58,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (clipcasing_tics == 3)
+				{
+					DrawImage("TRCELU_5", (-58,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (clipcasing_tics == 2)
+				{
+					DrawImage("TRCELU_6", (-58,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (clipcasing_tics == 1)
+				{
+					DrawImage("TRCELU_7", (-58,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+			}
+			else if (!check_ammotype && use_generic_sprite) {
+				if (clipcasing_tics == 7)
+				{
+					DrawImage("TRGNRU_1", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (clipcasing_tics == 6)
+				{
+					DrawImage("TRGNRU_2", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (clipcasing_tics == 5)
+				{
+					DrawImage("TRGNRU_3", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (clipcasing_tics == 4)
+				{
+					DrawImage("TRGNRU_4", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (clipcasing_tics == 3)
+				{
+					DrawImage("TRGNRU_5", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (clipcasing_tics == 2)
+				{
+					DrawImage("TRGNRU_6", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+				if (clipcasing_tics == 1)
+				{
+					DrawImage("TRGNRU_7", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
+				}
+			}
+		}
+		
+		
+		
+		
+		//Here we draw the counter overlay.
+		DrawImage ("AMMOCNTR",(-13,0),DI_SCREEN_RIGHT_BOTTOM);
+		
+		if (ammotype1 != null)
+		{
+			DrawString (MegaFont, FormatNumber(ammotype1.Amount, 3), (-3,-43), DI_SCREEN_RIGHT_BOTTOM|DI_TEXT_ALIGN_RIGHT, Font.CR_RED);
+			
+			if (ammotype1.Amount == ammotype1.MaxAmount) {
+				DrawString (BigFont, "MAX", (-3,-50), DI_SCREEN_RIGHT_BOTTOM|DI_TEXT_ALIGN_RIGHT, Font.CR_RED);
+			}
+			
+		}
+		
+		if (ammotype2 != null) 
+		{
+			DrawString (BigFont, FormatNumber(ammotype2.Amount, 3), (-3,-23), DI_SCREEN_RIGHT_BOTTOM|DI_TEXT_ALIGN_RIGHT, Font.CR_RED);
+		}
+		
+		
+		//The next thing drawn here is the mugshot. A lot more simple than the two above features.
+		DrawImage ("MUGDOME0", (0,0), DI_SCREEN_CENTER_BOTTOM|DI_ITEM_CENTER_BOTTOM);
+		DrawTexture (GetMugShot(5), (0,-8), DI_SCREEN_CENTER_BOTTOM|DI_ITEM_CENTER_BOTTOM);
+		
+		if (crit_mug_fade_in) {
+			crit_mug_alpha += TicFrac * 0.1;
+		} else {
+			crit_mug_alpha -= TicFrac * 0.1;
+		}
+		
+		if (crit_mug_alpha >= 1) {
+			crit_mug_fade_in = false;
+		}
+		else if (crit_mug_alpha <= 0) {
+			crit_mug_fade_in = true;
+		}
+		
+		if (CPlayer.health <= 25) {
+			DrawImage ("MUGDOME1", (0,0), DI_SCREEN_CENTER_BOTTOM|DI_ITEM_CENTER_BOTTOM, crit_mug_alpha);
+		}
+		
+		//And finally, the key bar to display all keys. Making all the important parts of the HUD complete.
+		DrawImage ("KEYBAR", (0,0), DI_SCREEN_LEFT_TOP|DI_ITEM_LEFT_TOP);
+		
+		if (CheckInventory("BlueCard", 1)) {
+			DrawImage ("KB_BKEY", (3,3), DI_SCREEN_LEFT_TOP|DI_ITEM_LEFT_TOP);
+		}
+		
+		if (CheckInventory("RedCard", 1)) {
+			DrawImage ("KB_RKEY", (19,3), DI_SCREEN_LEFT_TOP|DI_ITEM_LEFT_TOP);
+		}
+		
+		if (CheckInventory("YellowCard", 1)) {
+			DrawImage ("KB_YKEY", (35,3), DI_SCREEN_LEFT_TOP|DI_ITEM_LEFT_TOP);
+		}
+		
+		if (CheckInventory("BlueSkull", 1)) {
+			DrawImage ("KB_BSKU", (55,2), DI_SCREEN_LEFT_TOP|DI_ITEM_LEFT_TOP);
+		}
+		
+		if (CheckInventory("RedSkull", 1)) {
+			DrawImage ("KB_RSKU", (71,2), DI_SCREEN_LEFT_TOP|DI_ITEM_LEFT_TOP);
+		}
+		
+		if (CheckInventory("YellowSkull", 1)) {
+			DrawImage ("KB_YSKU", (87,2), DI_SCREEN_LEFT_TOP|DI_ITEM_LEFT_TOP);
+		}
+	}
+	
+}

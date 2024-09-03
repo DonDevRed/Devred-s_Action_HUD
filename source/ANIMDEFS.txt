@@ -1,0 +1,12 @@
+texture HPBARDM
+	pic HPBARDM1 tics 5
+	pic HPBARDM2 tics 5
+
+texture CLP_USED
+	pic TRCLPU_1 tics 1
+	pic TRCLPU_2 tics 1
+	pic TRCLPU_3 tics 1
+	pic TRCLPU_4 tics 1
+	pic TRCLPU_5 tics 1
+	pic TRCLPU_6 tics 1
+	pic TRCLPU_7 tics 1
