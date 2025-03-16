@@ -1,0 +1,15 @@
+//This file is a template to create your own compatibility patch to make this mod run in your favorite mods.
+//You can also use this to display your own ammo sprites to the mod, if you wish to do so.
+
+//To make a new patch, copy and paste this file to a separate PK3 file. Then fill in the following values.
+//ammoname: the class name of the ammotype to display, clip_sprite: The name of the sprite that will be displaed in the tray. Must be 8 characters long max.
+//clip_size: the Size of the sprite, clip_x_pos: horizontal limit of the tray, 
+//spent_fr_ABC&BigShot: the names of the sprites for the casing animations. The files for the casing must be written like this: SPRNAM_0
+//Where the first 6 character are the name, and the last character at the end is the frame. Max frames is 8.
+//spent_x_pos: The horizontal position where the casing animation will play.
+
+//You can copy/paste the line at the bottom to add more entries.
+
+//After all this info is filled in, delete the commented text, rename this file to "DHUDAMMO.txt" and save. 
+
+-AmmoType, ammoname=_, clip_sprite=_, clip_size=0, clip_x_pos=0, spent_fr_A=_, spent_fr_B=_, spent_fr_C=_, spent_fr_BigShot=_, spent_x_pos=0

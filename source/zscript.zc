@@ -13,14 +13,23 @@ class DevredsHUD : BaseStatusBar
 	bool damagebar_lit;
 	
 	int previous_ammo;
-	int clipcasing_tics;
+	int clipcasing_delay;
 	bool casing_spent;
+	
+	String casing_slots[9];
+	int current_casing_slot;
+	double casing_x_spacing;
 	
 	int ammotray_lerp;
 	
 	int clip_tray_dist;
 	int clip_tray_lerp;
 	int clip_tray_up;
+	
+	int ammotray_ammospent;
+	bool ammotray_bigshot;
+	
+	int ammoclip_lerp_delay;
 	
 	int shell_tray_dist;
 	
@@ -36,8 +45,9 @@ class DevredsHUD : BaseStatusBar
 	float crit_mug_alpha;
 	
 	int player_command;
-	bool use_generic_sprite;
-	bool use_custom_ammo;
+	Array<String> custom_ammotype;
+	
+	double deltaTic;
 	
 	override void Init()
 	{
@@ -48,27 +58,47 @@ class DevredsHUD : BaseStatusBar
 		damagebar_lit = false;
 		
 		previous_ammo = 0;
-		clipcasing_tics = 7;
+		clipcasing_delay = 1;
 		casing_spent = false;
+		casing_x_spacing = -52;
+
+		casing_slots[0] = "NOFRAM_0";
+		casing_slots[1] = "NOFRAM_0";
+		casing_slots[2] = "NOFRAM_0";
+		casing_slots[3] = "NOFRAM_0";
+		casing_slots[4] = "NOFRAM_0";
+		casing_slots[5] = "NOFRAM_0";
+		casing_slots[6] = "NOFRAM_0";
+		casing_slots[7] = "NOFRAM_0";
+		casing_slots[8] = "NOFRAM_0";
+		current_casing_slot = 0;
 		
 		ammotray_lerp = 0;
+		ammotray_ammospent = 0;
+		ammotray_bigshot = false;
 		clip_tray_dist = 10;
 		shell_tray_dist = 12;
 		rocket_tray_dist = 16;
 		cell_tray_dist = 8;
 		clip_tray_lerp = 10;
 		clip_tray_up = 0;
+		
+		ammoclip_lerp_delay = 1;
 		ammotype_switched = false;
 		
 		crit_mug_fade_in = false;
 		crit_mug_alpha = 0.0;
 		
-		use_generic_sprite = true;
-		use_custom_ammo = false;
-		
 		MegaFont = HUDFont.Create("HUDFONT_DOOM");
 		BigFont = HUDFont.Create("SMALLFONT");
 		TinyFont = HUDFont.Create("INDEXFONT");
+		
+		//Get custom sprite names from DHUDCUST lump.
+		int custom_ammo_index = Wads.FindLump("DHUDAMMO.txt", 0);
+		String custom_ammo_data = Wads.ReadLump(custom_ammo_index);
+		
+		custom_ammo_data.Split(custom_ammotype, "\n");
+		
 	}
 	
 	override void Draw (int state, double TicFrac)
@@ -94,6 +124,11 @@ class DevredsHUD : BaseStatusBar
 	
 	void D_FullHUD (double TicFrac)
 	{
+		//This variable is a test to help maintain a consistent framerate for the animations.
+		deltaTic = TicFrac;
+		
+		
+		
 		//Health bar is designated here.
 		DrawImage ("HPARBAR",(55,0),DI_SCREEN_LEFT_BOTTOM);
 		
@@ -158,10 +193,7 @@ class DevredsHUD : BaseStatusBar
 		bool check_ammotype;
 		
 		if (ammotype1 != null) {
-			if (!use_custom_ammo) {
-				current_ammotype = ammotype1.GetClassName();
-			}
-			DrawImage ("AMMOTRAY",(-59,ammotray_lerp),DI_SCREEN_RIGHT_BOTTOM);
+			current_ammotype = ammotype1.GetClassName();
 		} else {
 			current_ammotype = "None";
 		}
@@ -173,207 +205,84 @@ class DevredsHUD : BaseStatusBar
 			check_ammotype = false;
 		}
 		
-		if (ammotray_lerp > 0) {
-			ammotray_lerp -= TicFrac * 8;
-		}
-		else if (ammotray_lerp < 0) {
-			ammotray_lerp += TicFrac;
-		}
-		
 		//This section is to show ammo in the tray.
 		if (ammotype1 != null)
 		{
+			String ammo_sprite;
+			int ammo_spacing;
+			int ammo_spacingFix;
+			int ammo_traySpace;
+			int ammo_trayFix;
+			int ammo_displayAmount;
+			
 			if (current_ammotype == "Clip")
 			{
-				if (ammotype1.Amount >= 1)
-				{
-					DrawImage("TR_CLIP0", (clip_tray_dist * -10 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 2)
-				{
-					DrawImage("TR_CLIP0", (clip_tray_dist * -9 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 3)
-				{
-					DrawImage("TR_CLIP0", (clip_tray_dist * -8 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 4)
-				{
-					DrawImage("TR_CLIP0", (clip_tray_dist * -7 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 5)
-				{
-					DrawImage("TR_CLIP0", (clip_tray_dist * -6 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 6)
-				{
-					DrawImage("TR_CLIP0", (clip_tray_dist * -5 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 7)
-				{
-					DrawImage("TR_CLIP0", (clip_tray_dist * -4 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 8)
-				{
-					DrawImage("TR_CLIP0", (clip_tray_dist * -3 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 9)
-				{
-					DrawImage("TR_CLIP0", (clip_tray_dist * -2 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
+				ammo_traySpace = 9;
+				ammo_trayFix = 1;
+				ammo_spacing = clip_tray_dist;
+				ammo_spacingFix = 0;
+				ammo_sprite = "TR_CLIP0";
 			}
 			else if (current_ammotype == "Shell")
 			{
-					if (ammotype1.Amount >= 1)
-				{
-					DrawImage("TR_SHEL0", (shell_tray_dist * -8 + clip_tray_lerp - 2, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 2)
-				{
-					DrawImage("TR_SHEL0", (shell_tray_dist * -7 + clip_tray_lerp - 2, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 3)
-				{
-					DrawImage("TR_SHEL0", (shell_tray_dist * -6 + clip_tray_lerp - 2, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 4)
-				{
-					DrawImage("TR_SHEL0", (shell_tray_dist * -5 + clip_tray_lerp - 2, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 5)
-				{
-					DrawImage("TR_SHEL0", (shell_tray_dist * -4 + clip_tray_lerp - 2, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 6)
-				{
-					DrawImage("TR_SHEL0", (shell_tray_dist * -3 + clip_tray_lerp - 2, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 7)
-				{
-					DrawImage("TR_SHEL0", (shell_tray_dist * -2 + clip_tray_lerp - 2, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 8)
-				{
-					DrawImage("TR_SHEL0", (shell_tray_dist * -1 + clip_tray_lerp - 2, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
+				ammo_traySpace = 8;
+				ammo_trayFix = 0;
+				ammo_spacing = shell_tray_dist;
+				ammo_spacingFix = -2;
+				ammo_sprite = "TR_SHEL0";
 			}
 			else if (current_ammotype == "RocketAmmo")
 			{
-					if (ammotype1.Amount >= 1)
-				{
-					DrawImage("TR_ROCK0", (rocket_tray_dist * -6 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 2)
-				{
-					DrawImage("TR_ROCK0", (rocket_tray_dist * -5 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 3)
-				{
-					DrawImage("TR_ROCK0", (rocket_tray_dist * -4 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 4)
-				{
-					DrawImage("TR_ROCK0", (rocket_tray_dist * -3 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 5)
-				{
-					DrawImage("TR_ROCK0", (rocket_tray_dist * -2 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 6)
-				{
-					DrawImage("TR_ROCK0", (rocket_tray_dist * -1 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
+				ammo_traySpace = 6;
+				ammo_trayFix = 0;
+				ammo_spacing = rocket_tray_dist;
+				ammo_spacingFix = 0;
+				ammo_sprite = "TR_ROCK0";
 			}
 			if (current_ammotype == "Cell")
 			{
-				if (ammotype1.Amount >= 1)
-				{
-					DrawImage("TR_CELL0", (cell_tray_dist * -13 + clip_tray_lerp + 3, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 2)
-				{
-					DrawImage("TR_CELL0", (cell_tray_dist * -12 + clip_tray_lerp + 3, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 3)
-				{
-					DrawImage("TR_CELL0", (cell_tray_dist * -11 + clip_tray_lerp + 3, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 4)
-				{
-					DrawImage("TR_CELL0", (cell_tray_dist * -10 + clip_tray_lerp + 3, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 5)
-				{
-					DrawImage("TR_CELL0", (cell_tray_dist * -9 + clip_tray_lerp + 3, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 6)
-				{
-					DrawImage("TR_CELL0", (cell_tray_dist * -8 + clip_tray_lerp + 3, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 7)
-				{
-					DrawImage("TR_CELL0", (cell_tray_dist * -7 + clip_tray_lerp + 3, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 8)
-				{
-					DrawImage("TR_CELL0", (cell_tray_dist * -6 + clip_tray_lerp + 3, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 9)
-				{
-					DrawImage("TR_CELL0", (cell_tray_dist * -5 + clip_tray_lerp + 3, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 10)
-				{
-					DrawImage("TR_CELL0", (cell_tray_dist * -4 + clip_tray_lerp + 3, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 11)
-				{
-					DrawImage("TR_CELL0", (cell_tray_dist * -3 + clip_tray_lerp + 3, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 12)
-				{
-					DrawImage("TR_CELL0", (cell_tray_dist * -2 + clip_tray_lerp + 3, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
+				ammo_traySpace = 12;
+				ammo_trayFix = 1;
+				ammo_spacing = cell_tray_dist;
+				ammo_spacingFix = 3;
+				ammo_sprite = "TR_CELL0";
 			}
-			else if ( !check_ammotype && use_generic_sprite)
+			else if (!check_ammotype)
 			{
-				if (ammotype1.Amount >= 1)
-				{
-					DrawImage("TR_GNRC0", (clip_tray_dist * -10 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 2)
-				{
-					DrawImage("TR_GNRC0", (clip_tray_dist * -9 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 3)
-				{
-					DrawImage("TR_GNRC0", (clip_tray_dist * -8 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 4)
-				{
-					DrawImage("TR_GNRC0", (clip_tray_dist * -7 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 5)
-				{
-					DrawImage("TR_GNRC0", (clip_tray_dist * -6 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 6)
-				{
-					DrawImage("TR_GNRC0", (clip_tray_dist * -5 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 7)
-				{
-					DrawImage("TR_GNRC0", (clip_tray_dist * -4 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 8)
-				{
-					DrawImage("TR_GNRC0", (clip_tray_dist * -3 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (ammotype1.Amount >= 9)
-				{
-					DrawImage("TR_GNRC0", (clip_tray_dist * -2 + clip_tray_lerp, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				//Set generic values first.
+				ammo_traySpace = 9;
+				ammo_trayFix = 1;
+				ammo_spacing = clip_tray_dist;
+				ammo_spacingFix = 0;
+				ammo_sprite = "TR_GNRC0";
+				//Get custom sprites from string array here.
+				foreach(at : custom_ammotype) {
+					//Then set custom values.
+					Array<String> at_values; at.Split(at_values, ", ");
+					String ammo_name;
+					ammo_name = at_values[1].Mid(9);
+					if (ammo_name == current_ammotype) {
+						String at_traySpace = at_values[4].Mid(11);
+						ammo_traySpace = at_traySpace.ToInt();
+						ammo_trayFix = 1;
+						String at_ammo_spacing = at_values[3].Mid(10);
+						ammo_spacing = at_ammo_spacing.ToInt();
+						ammo_spacingFix = 0;
+						ammo_sprite = at_values[2].Mid(12);
+						break;
+					}
 				}
 			}
+			
+			if (ammotype1.Amount >= ammo_traySpace) {
+				ammo_displayAmount = ammo_traySpace;
+			} else {
+				ammo_displayAmount = ammotype1.Amount;
+			}
+			
+			for (int f = 1; f < ammo_displayAmount + 1; f++) {
+					DrawImage(ammo_sprite, (ammo_spacing * (f - ammo_traySpace - ammo_trayFix - 1) + clip_tray_lerp + ammo_spacingFix, -2 - clip_tray_up), DI_SCREEN_RIGHT_BOTTOM);
+				}
 		}
 		
 		if (ammotype1 != null && ammotype1.Amount != previous_ammo)
@@ -387,184 +296,143 @@ class DevredsHUD : BaseStatusBar
 				clip_tray_up = 8;
 			}
 			else{
-				clipcasing_tics = 7;
-				clip_tray_lerp = 10;
+				//This line below starts the casing animation. Change it to use the arrays.
+				bool tray_sled = false;
+				ammotray_ammospent = previous_ammo - ammotype1.Amount;
+				while (ammotray_ammospent > 0) {
+					if (!tray_sled) {
+						clip_tray_lerp = 10 * ammotray_ammospent;
+						tray_sled = true;
+					}
+					if (ammotray_ammospent >= 10) {
+						ammotray_bigshot = true;
+						ammotray_ammospent = 1;
+					}
+					casing_slots[current_casing_slot] = "TRGNRU_0";
+					current_casing_slot += 1;
+					if (current_casing_slot > 8) {
+						current_casing_slot = 0;
+					}
+					if (clip_tray_lerp > 100) {
+						clip_tray_lerp = 100;
+					}
+					ammotray_ammospent -= 1;
+				}
 			}
 			previous_ammo = ammotype1.Amount;
 		}
-			clipcasing_tics -= TicFrac;
-		
-		if (clip_tray_lerp > 0) {
-			clip_tray_lerp -= TicFrac * 2;
-		}
-		
-		if (clip_tray_up > 0) {
-			clip_tray_up -= TicFrac * 2;
-		}
-		else if (clip_tray_up < 0) {
-			clip_tray_up += TicFrac * 8;
-		}
-		
-		if (clipcasing_tics > 0)
+		//Setting static arrays here.
+		static const String CASING_SHEL[] =
 		{
-			if (current_ammotype == "Clip")
-			{
-				if (clipcasing_tics == 7)
-				{
-					DrawImage("TRCLPU_1", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (clipcasing_tics == 6)
-				{
-					DrawImage("TRCLPU_2", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (clipcasing_tics == 5)
-				{
-					DrawImage("TRCLPU_3", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (clipcasing_tics == 4)
-				{
-					DrawImage("TRCLPU_4", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (clipcasing_tics == 3)
-				{
-					DrawImage("TRCLPU_5", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (clipcasing_tics == 2)
-				{
-					DrawImage("TRCLPU_6", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (clipcasing_tics == 1)
-				{
-					DrawImage("TRCLPU_7", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
+			"TRSHLU_", "TRSHLB_", "TRSHLC_"
+		};
+		
+		static const String CASING_CLIP[] =
+		{
+			"TRCLPU_", "TRCLBU_", "TRCLCU_"
+		};
+		
+		
+		//Tic timers go here
+		if (clipcasing_delay <= 0) {
+			for (int fr = 0; fr < 9; fr++) {
+				int change_next_frame;
+				
+				String this_casing_slot = casing_slots[fr].Mid(7);
+				
+				change_next_frame = this_casing_slot.ToInt() + 1;
+				casing_slots[fr].Substitute(this_casing_slot, String.Format("%d", change_next_frame));
+				
 			}
-			
-			else if (current_ammotype == "Shell") {
-				if (clipcasing_tics == 7)
-				{
-					DrawImage("TRSHLU_1", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (clipcasing_tics == 6)
-				{
-					DrawImage("TRSHLU_2", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (clipcasing_tics == 5)
-				{
-					DrawImage("TRSHLU_3", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (clipcasing_tics == 4)
-				{
-					DrawImage("TRSHLU_4", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (clipcasing_tics == 3)
-				{
-					DrawImage("TRSHLU_5", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (clipcasing_tics == 2)
-				{
-					DrawImage("TRSHLU_6", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (clipcasing_tics == 1)
-				{
-					DrawImage("TRSHLU_7", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
-			}
-			
-			else if (current_ammotype == "RocketAmmo") {
-				if (clipcasing_tics == 7)
-				{
-					DrawImage("TRROCU_1", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (clipcasing_tics == 6)
-				{
-					DrawImage("TRROCU_2", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (clipcasing_tics == 5)
-				{
-					DrawImage("TRROCU_3", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (clipcasing_tics == 4)
-				{
-					DrawImage("TRROCU_4", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (clipcasing_tics == 3)
-				{
-					DrawImage("TRROCU_5", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (clipcasing_tics == 2)
-				{
-					DrawImage("TRROCU_6", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (clipcasing_tics == 1)
-				{
-					DrawImage("TRROCU_7", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
-			}
-			
-			else if (current_ammotype == "Cell") {
-				if (clipcasing_tics == 7)
-				{
-					DrawImage("TRCELU_1", (-58,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (clipcasing_tics == 6)
-				{
-					DrawImage("TRCELU_2", (-58,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (clipcasing_tics == 5)
-				{
-					DrawImage("TRCELU_3", (-58,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (clipcasing_tics == 4)
-				{
-					DrawImage("TRCELU_4", (-58,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (clipcasing_tics == 3)
-				{
-					DrawImage("TRCELU_5", (-58,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (clipcasing_tics == 2)
-				{
-					DrawImage("TRCELU_6", (-58,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (clipcasing_tics == 1)
-				{
-					DrawImage("TRCELU_7", (-58,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
-			}
-			else if (!check_ammotype && use_generic_sprite) {
-				if (clipcasing_tics == 7)
-				{
-					DrawImage("TRGNRU_1", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (clipcasing_tics == 6)
-				{
-					DrawImage("TRGNRU_2", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (clipcasing_tics == 5)
-				{
-					DrawImage("TRGNRU_3", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (clipcasing_tics == 4)
-				{
-					DrawImage("TRGNRU_4", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (clipcasing_tics == 3)
-				{
-					DrawImage("TRGNRU_5", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (clipcasing_tics == 2)
-				{
-					DrawImage("TRGNRU_6", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
-				if (clipcasing_tics == 1)
-				{
-					DrawImage("TRGNRU_7", (-52,0), DI_SCREEN_RIGHT_BOTTOM);
-				}
-			}
+			clipcasing_delay = devrhud_spentcasing_tics;
 		}
+		clipcasing_delay -= TicFrac;
 		
 		
+		if (ammoclip_lerp_delay <= 0) {
+			//Tray lerping
+			if (ammotray_lerp > 0) {
+				ammotray_lerp -= 8;
+			}
+			else if (ammotray_lerp < 0) {
+				ammotray_lerp += 1;
+			}
+			//Clip Lerping
+			if (clip_tray_lerp > 0) {
+				clip_tray_lerp -= 2;
+			}
+			if (clip_tray_up > 0) {
+				clip_tray_up -= 2;
+			}
+			else if (clip_tray_up < 0) {
+				clip_tray_up += 8;
+			}
+			ammoclip_lerp_delay = devrhud_traylerp_tics;
+		}
+		ammoclip_lerp_delay -= TicFrac;
 		
+		
+		//This section controls the spent casing animations. (Updated)
+		for (int fr = 0; fr < 9; fr++) {
+			String frame_name = casing_slots[fr].Mid(0, 6);
+			bool get_generic = false;
+			
+			if (frame_name == "TRGNRU") {
+				get_generic = true;
+				if (current_ammotype == "Clip"){
+					casing_slots[fr].Replace("TRGNRU", CASING_CLIP[random(0,2)]);
+					casing_x_spacing = -52;
+				}
+				else if (current_ammotype == "Shell") {
+					casing_slots[fr].Replace("TRGNRU", CASING_SHEL[random(0,2)]);
+					casing_x_spacing = -52;
+				}
+				else if (current_ammotype == "RocketAmmo") {
+					casing_slots[fr].Replace("TRGNRU", "TRROCU");
+					casing_x_spacing = -52;
+				}
+				else if (current_ammotype == "Cell") {
+					if (ammotray_bigshot) {
+						casing_slots[fr].Replace("TRGNRU", "TRCELA");
+					} else {
+						casing_slots[fr].Replace("TRGNRU", "TRCELU");
+					}
+					casing_x_spacing = -58;
+				}
+				else if (!check_ammotype) {
+					foreach(at : custom_ammotype) {
+					//int ammo_name_left = at.RightIndexOf("-ammotype=") + 1;
+						Array<String> at_values; at.Split(at_values, ", ");
+						String ammo_name;
+
+						ammo_name = at_values[1].Mid(9);
+						
+						if (ammo_name == current_ammotype) {
+							if (ammotray_bigshot) {
+								casing_slots[fr].Replace("TRGNRU", at_values[8].Mid(17, 6));
+							} else {
+								String at_spent_fr[] = { at_values[5].Mid(11, 6), at_values[6].Mid(11, 6), at_values[7].Mid(11, 6) };
+								casing_slots[fr].Replace("TRGNRU", at_spent_fr[random(0,2)]);
+							}
+							String at_spent_pos = at_values[9].Mid(12);
+							casing_x_spacing = -52 - at_spent_pos.ToInt();
+							break;
+						}
+						
+					}
+					
+					
+				}
+				ammotray_bigshot = false;
+			}
+			
+			String this_frame = casing_slots[fr].Mid(7);
+			
+			if (this_frame.ToInt() != 0 && this_frame.ToInt() <= 8) {
+				DrawImage(casing_slots[fr], (casing_x_spacing,0), DI_SCREEN_RIGHT_BOTTOM);
+			}
+			
+		}
 		
 		//Here we draw the counter overlay.
 		DrawImage ("AMMOCNTR",(-13,0),DI_SCREEN_RIGHT_BOTTOM);
@@ -585,27 +453,29 @@ class DevredsHUD : BaseStatusBar
 		}
 		
 		
+		
 		//The next thing drawn here is the mugshot. A lot more simple than the two above features.
-		DrawImage ("MUGDOME0", (0,0), DI_SCREEN_CENTER_BOTTOM|DI_ITEM_CENTER_BOTTOM);
-		DrawTexture (GetMugShot(5), (0,-8), DI_SCREEN_CENTER_BOTTOM|DI_ITEM_CENTER_BOTTOM);
+		if (devrhud_displaymug) {
+			DrawImage ("MUGDOME0", (devrhud_mugshotpos,0), DI_SCREEN_CENTER_BOTTOM|DI_ITEM_CENTER_BOTTOM);
+			DrawTexture (GetMugShot(5), (devrhud_mugshotpos,-8), DI_SCREEN_CENTER_BOTTOM|DI_ITEM_CENTER_BOTTOM);
 		
-		if (crit_mug_fade_in) {
-			crit_mug_alpha += TicFrac * 0.1;
-		} else {
-			crit_mug_alpha -= TicFrac * 0.1;
-		}
+			if (crit_mug_fade_in) {
+				crit_mug_alpha += deltaTic * 0.1;
+			} else {
+				crit_mug_alpha -= deltaTic * 0.1;
+			}
+			
+			if (crit_mug_alpha >= 1) {
+				crit_mug_fade_in = false;
+			}
+			else if (crit_mug_alpha <= 0) {
+				crit_mug_fade_in = true;
+			}
 		
-		if (crit_mug_alpha >= 1) {
-			crit_mug_fade_in = false;
+			if (CPlayer.health <= 25) {
+				DrawImage ("MUGDOME1", (devrhud_mugshotpos,0), DI_SCREEN_CENTER_BOTTOM|DI_ITEM_CENTER_BOTTOM, crit_mug_alpha);
+			}
 		}
-		else if (crit_mug_alpha <= 0) {
-			crit_mug_fade_in = true;
-		}
-		
-		if (CPlayer.health <= 25) {
-			DrawImage ("MUGDOME1", (0,0), DI_SCREEN_CENTER_BOTTOM|DI_ITEM_CENTER_BOTTOM, crit_mug_alpha);
-		}
-		
 		//And finally, the key bar to display all keys. Making all the important parts of the HUD complete.
 		DrawImage ("KEYBAR", (0,0), DI_SCREEN_LEFT_TOP|DI_ITEM_LEFT_TOP);
 		
@@ -632,6 +502,7 @@ class DevredsHUD : BaseStatusBar
 		if (CheckInventory("YellowSkull", 1)) {
 			DrawImage ("KB_YSKU", (87,2), DI_SCREEN_LEFT_TOP|DI_ITEM_LEFT_TOP);
 		}
+		
 	}
 	
 }

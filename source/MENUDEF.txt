@@ -1,0 +1,34 @@
+OptionValue "MugEnabled"
+{
+	0, "Disabled"
+	1, "Enabled"
+}
+
+OptionMenu "DevredHUDOptions"
+{
+	StaticText "Devred's Action HUD Settings"
+	StaticText ""
+	StaticText ""
+	StaticText ""
+	StaticText "Mugshot Settings:"
+	StaticText ""
+	Option "Display Mugshot: ", "devrhud_displaymug", "MugEnabled"
+	StaticText ""
+	Slider "Mugshot Horizontal Position: ", "devrhud_mugshotpos", -300, 300, 10
+	StaticText "This setting only works when mugshot is enabled."
+	StaticText ""
+	StaticText ""
+	StaticText "Tray Settings:"
+	StaticText ""
+	Slider "Spend Casing Animation Tics: ", "devrhud_spentcasing_tics", 1, 100, 10
+	StaticText ""
+	Slider "Tray Movement Tics: ", "devrhud_traylerp_tics", 1, 100, 10
+	StaticText ""
+	StaticText "Tray settings change how fast the tray animations play by setting how many tics before the next frame is displayed."
+}
+
+AddOptionMenu "OptionsMenu"
+{
+	StaticText ""
+	Submenu "Devred's Action HUD Settings", "DevredHUDOptions"
+}

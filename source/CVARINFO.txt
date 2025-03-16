@@ -1,0 +1,12 @@
+//Mugshot setting variables
+server bool devrhud_displaymug = true;
+server float devrhud_mugshotpos = 0;
+
+//General animation setting variables
+server float devrhud_animationspeed = 1;
+server int devrhud_spentcasing_tics = 1;
+server int devrhud_traylerp_tics = 1;
+
+//HUD display setting variables
+user bool devrhud_weaponshowname = false;
+user bool devrhud_weaponshowimg = false;
